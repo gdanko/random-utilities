@@ -1,0 +1,81 @@
+splunk:
+  username: <splunk_api_username>
+  password: <splunk_api_password>
+  scheme: :https
+  host: oprdsstlg30c.corp.intuit.net
+  port: 8089
+  queries:
+    # The format of a query stanza is as follows.
+    # column - This is the QuickBase column NAME.
+    # key - This is the key from the result object. It holds the value we care about.
+    # span - This is the span for this Splunk query.
+    # earliest_time - This is the starting point, how far back to go. It is relative to "now".
+    # latest_time - This is the end point. Gather data from earliest_time until latest_time.
+    # skip - (yes|no) Do we skip this query at run time?
+    - column: RSS /TPS
+      query: "search index=apigateway-pr* api=Intuit.tech.security.rss app=* | eval count=1 | timechart partial=false per_second(count)"
+      key: "per_second(count)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: RSS /Latency
+      query: "search index=apigateway-pr* api=Intuit.tech.security.rss app=* | timechart avg(txTime)"
+      key: "avg(txTime)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: SDT Token /TPS
+      query: "search index=apigateway-pr* xHost=tokenization* | eval count=1 | timechart partial=false per_second(count)"
+      key: "per_second(count)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: SDT Token /Latency
+      query: "search index=apigateway-pr* xHost=tokenization* | timechart avg(txTime)"
+      key: "avg(txTime)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: SDT Detoken /TPS
+      query: "search index=apigateway-pr* xHost=detokenization* | eval count=1 | timechart partial=false per_second(count)"
+      key: "per_second(count)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: SDT Detoken /Latency
+      query: "search index=apigateway-pr* xHost=detokenization* | timechart avg(txTime)"
+      key: "avg(txTime)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: AVS /TPS
+      query: "search index=apigateway-pr* xHost=antivirus.platform.intuit.net | eval count=1 | timechart partial=false per_second(count)"
+      key: "per_second(count)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: AVS /Latency
+      query: "search index=apigateway-pr* xHost=antivirus.platform.intuit.net | timechart avg(txTime)"
+      key: "avg(txTime)"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+    - column: RSS Block percentage
+      query: "search index=rss-prdidx RiskAssessmentResponse | top recommendation by policy | search recommendation=block | search policy=login_policy_1"
+      key: "percent"
+      span: 5m
+      earliest_time: -1h
+      latest_time: now
+      skip: no
+quickbase:
+  db: <database_id>
+  token: <database_token>
+proxy: http://qypprdproxy02.ie.intuit.net:80

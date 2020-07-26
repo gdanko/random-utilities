@@ -1,0 +1,188 @@
+servicenow:
+  env: prod
+  username: <servicenow api username>
+  password: <servicenow api password>
+programs:
+  identity:
+    - IDManager (IAM 2.0)
+    - UnboundID
+    - HA TicketServer
+    - Partner Authentication Gateway
+    - Authentication (UniAuth)
+    - Web & Hosting Platform (WHP)
+    - IDFederation
+    - Identity Data eXchange (IDX)
+    - IDProfile
+    - AssetID
+    - OAuth 2.0
+    - Identity User eXperience (IUX)
+    - IDManager (IAM)
+    - Util Data eXchange (UDX)
+    - OAuth
+    - Subscription Data eXchange (SDX)
+    - Identity Universal Service (IUS)
+    - IDAudit
+  public-cloud:
+    - Amazon Web Services Security Operations Center (AWS SOC) - Splunk
+    - Cloud Agility Platform (CAP)
+    - Cloud Enablement - Cloud Access Services
+    - hosting.intuit.com
+    - Intuit Security Services (ISS)
+    - ISS Cloud Access Service
+    - ISS Secrets Service
+    - ISS Verification Service
+    - Public Cloud Hosting Intelligence
+    - Public Cloud Log Management 
+    - Public Cloud Security Operations
+    - Tiles (Development Services Catalog)
+    - Verification Service (ISS)
+  data-platform:
+    - CTO Data Access Platform
+    - CTO Data Platform (IDP)
+  fds:
+    - FDP Transaction
+    - FDS Access Service
+    - FDS Account Service
+    - FDS Aggregation
+    - FDS Aggregation (APD)
+    - FDS Aggregation (CAD)
+    - FDS Aggregation (FinanceWorks)
+    - FDS Aggregation (Mint)
+    - FDS Aggregation (QBO)
+    - FDS Aggregation (QEM)
+    - FDS Aggregation (Quicken)
+    - FDS Aggregation (Turbo Tax)
+    - FDS Branding
+    - FDS Categorization
+    - FDS Credential Service
+    - FDS DASH
+    - FDS Data Acquisition Service (DAS)
+    - FDS Direct API Connectivity (DAC)
+    - FDS Document Service
+    - FDS DS/PMP
+    - FDS Enrichment
+    - FDS FDP Analytics
+    - FDS FDP Data Interaction Service (FDI)
+    - FDS FDP Dedupe Service
+    - FDS FDP Scheduler
+    - FDS FDP Throttler
+    - FDS Financial Provider Service (FPS)
+    - FDS Financial Services Health (FIH)
+    - FDS Infrastructure Services
+    - FDS Next Generation Web Integration (NGWI)
+    - FDS OCS Banking
+    - FDS OFX3
+    - FDS PDF Extraction Service (PES)
+    - FDS Process Bulk Import (PBI)
+    - FDS Self Serve Assistant (SHAPE)
+    - FDS SOM
+    - FDS Vault Service
+    - FDS Web Services Interface (WSI)
+    - FI CONN Broker Interfaces
+    - Interfaces
+  ics-monitoring/quality:
+    - CTO Wily
+    - JMETER
+    - Splunk CTO
+    - Splunk Monitoring - CTO
+  ics-other:
+    - Autopatch
+    - CTO Software Configuration Management (SCM)
+    - eFlow
+    - Electronic Software Delivery (ESD)
+  ics-qbn:
+    - Platform CSR
+    - Platform DBrep Database
+    - Platform Login
+    - Platform QBN (General)
+    - Platform QBNReg Database
+    - Platform Report
+    - Platform Simple Feedback Loop (SFLoop)
+    - Platform Subscription Billing
+    - Platform TargetedContent
+    - Platform Telemarketing
+    - Subscription (MARS)
+    - Subscription Data eXchange (SDX)
+    - Util Data eXchange (UDX)
+  live-community:
+    - Consumer Group Live Community
+    - Live Community Platform (LCP)
+  mobile:
+    - Application Lifecycle Management
+    - Crash Report
+    - CTO Data Extraction Service (DES)
+    - CTO DEV Mobile
+    - CTO Ops Mobile
+    - Device Carrier Lifecycle (DCL)
+    - Device Recognition Service (DRS)
+    - Intuit Data Extraction Architecture (IDEA)
+    - LifeRay Portal
+    - Location Based Services (LBS)
+    - Mobile Analytics
+    - Mobile First
+    - Mobile Identity
+    - mTalk SMS Gateway
+    - OCR Gateway
+    - Product Registration (UniReg)
+    - Product Survey
+    - Push Notification Gateway
+    - Voice Recognition
+  search:
+    - Semantic Technology & Search
+  security:
+    - AntiVirus Scanning Service
+    - Intuit Encryption Service
+    - Risk Assessment Data
+    - Risk Screening Service (RSS)
+    - Secure Vendor Access (SAV)
+    - Sensitive Data Tokenization (SDT)
+    - UserConfirm
+  services-fabric:
+    - API Gateway
+    - API Portal
+    - CentraSite
+    - CTO Offering Messaging
+    - CTO SP Node.js Platform
+    - Enterprise Service Bus (ESB)
+    - External Platform Gateway
+    - Offering Messaging Tax Shard
+    - Partner Portal
+    - Service Registry
+    - Service Registry UI
+    - Services Platform (SP)
+  tools:
+    - Autolab
+    - CICD iCode
+    - CICD Intuit Static Grid
+    - CICD Jenkins
+    - CICD Perforce/Orchestrator
+    - CodeCollaborator
+    - CTO Chef
+    - CTO Dev Tools - SaaS Testing Platform (STP)
+    - CTO Dev Tools App Ops
+    - CTO Perforce
+    - CTODev JIRA
+    - Enterprise Confluence
+    - Enterprise Defect Management (EDM) TeamTrack
+    - FishEye (FE)
+    - GitHub Enterprise (GIT)
+    - iCode
+    - Intuit Repository Manager (IRM)
+    - SilkCentral Test Manager (SCTM)
+    - Virtual/Mobile Device Lab
+  unassigned:
+    - Beam
+    - CFP Data Services CTG
+    - Cloud Accounts Data Service (CADS)
+    - code.intuit.com
+    - CTO Dev Tools Checkmarx Source Code Analysis (CMX)
+    - Customer Invoice Virality Experiment
+    - Geocoding Service
+    - HP Quality Center
+    - Intuit Build Platform
+    - IPGeocoding Service
+    - Legal Data Processing (LDP)
+    - Open Monitoring Distribution
+    - SEPG Data Warehouse
+    - Tax Anti-Fraud Service
+    - Tax Payment

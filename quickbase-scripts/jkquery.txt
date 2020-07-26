@@ -1,0 +1,10 @@
+LastSeen|oaf|-21
+F+|xex|1
+NEWAssigned Remediation Group|ct|Application,DBA
+IP - HostID - CI Name+ - Product Name+ (System) (ref) - BU - Org View (FY14)|sw|Tech - CTO
+Remediated|ex|No
+Issue Source|ex|Qualys
+Type|ex|Prod,Inet
+CVE|xct|CVE-2015-0235
+Vuln Type|ex|Vulnerability,Potential Vulnerability, Vulnerability or Potential Vulnerability
+Risk Rating|ex|Medium,High

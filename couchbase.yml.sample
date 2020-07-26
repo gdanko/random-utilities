@@ -1,0 +1,9 @@
+quickbase:
+  db: <db_id>
+  token: <db_token>
+newrelic:
+  key: <api_key>
+couchbase:
+  username: <username>
+  password: <password>
+#proxy: http://qypprdproxy02.ie.intuit.net:80

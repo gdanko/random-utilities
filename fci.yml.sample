@@ -1,0 +1,39 @@
+prod_influxdb: &PROD_INFLUXDB "lv1prdgphwd01.corp.intuit.net"
+dev_influxdb: &DEV_INFLUXDB "oprdsstem303.corp.intuit.net"
+configs:
+  foo_1day:
+    splunk_job_server: "<splunk.corp.intuit.net>"
+    splunk_user: "<username>"
+    splunk_pass: "<password>"
+    # splunk_summary_index and splunk_search_name should be unique for each config entry
+    splunk_summary_index: &FOO_SUMMARY_INDEX "<summary_index>"
+    splunk_search_name: &FOO_SEARCH_NAME "<search_name>"
+    influxdb_host: *DEV_INFLUXDB
+    influxdb_user: "<user>"
+    influxdb_pass: "<pass>"
+    influxdb_db: "<db_name>"
+    searchquery_normal: !join ["search earliest=-1d@d latest=@d index=", *FOO_SUMMARY_INDEX, " source=", *FOO_SEARCH_NAME, " | table host info_max_time count http_status"]
+    tags:
+      foo: bar
+      bar: baz
+    fields:
+      field1: value1
+      field2: value2
+  bar_1day:
+    splunk_job_server: "<splunk.corp.intuit.net>"
+    splunk_user: "<username>"
+    splunk_pass: "<password>"
+    # splunk_summary_index and splunk_search_name should be unique for each config entry
+    splunk_summary_index: &BAR_SUMMARY_INDEX "<summary_index>"
+    splunk_search_name: &BAR_SEARCH_NAME "<search_name>"
+    influxdb_host: *DEV_INFLUXDB
+    influxdb_user: "<user>"
+    influxdb_pass: "<pass>"
+    influxdb_db: "<db_name>"
+    searchquery_normal: !join ["search earliest=-1d@d latest=@d index=", *BAR_SUMMARY_INDEX, " source=", *BAR_SEARCH_NAME, " | table host info_max_time count http_status"]
+    tags:
+      foo: bar
+      bar: baz
+    fields:
+      field1: value1
+      field2: value2

@@ -1,0 +1,278 @@
+#!/usr/bin/env ruby
+
+require "pp"
+require "json"
+require "logger"
+require "splunk-sdk-ruby"
+require "quickbase"
+#require "/Users/gdanko/git/ruby-quickbase/lib/quickbase/quickbase.rb"
+require "optparse"
+require "yaml"
+require "tzinfo"
+require "etc"
+require "kconv"
+
+class Logger
+	def self.custom_level(tag)
+		SEV_LABEL << tag
+		idx = SEV_LABEL.size - 1
+
+		define_method(tag.downcase.gsub(/\W+/, '_').to_sym) do |progname, &block|
+			add(idx, nil, progname, &block)
+		end
+	end
+	custom_level "DRYRUN"
+end
+
+def auth()
+	printf("Corp username (#{Etc.getlogin}): ")
+	username = STDIN.gets.chomp
+	username = username.length > 1 ? username : Etc.getlogin
+
+	printf("Password for #{username}: ")
+	system "stty -echo"
+	password = STDIN.gets.chomp
+	system "stty echo"
+	puts ""
+	return {"username" => username || nil, "password" => password || nil}
+end
+
+def load_config(options, cfg_file)
+	cfg = nil
+	if (File.exists?(cfg_file))
+		s = File.stat(cfg_file)
+		mode = sprintf("%o", s.mode)
+		unless (mode == "100600")
+			options[:logger].fatal("The config file #{cfg_file} should be mode 0600 but it is not! Please fix this and try again.")
+			exit 1
+		end
+
+		begin
+			cfg = YAML.load_file(cfg_file)
+		rescue Psych::SyntaxError => e
+			options[:logger].fatal("An error occured reading the configuration file #{cfg_file}: #{e}")
+			exit
+		end
+	else
+		options[:logger].fatal("Configuration file #{cfg_file} not found.")
+		exit
+	end
+	return cfg
+end
+
+def record_exists(options, qb)
+	timestamp = ((options[:dt].to_time.to_i) + (options[:offset] * -1)) * 1000
+	qb.QueryAdd("Date", "oaf", "-2")
+	qb.DoQuery({
+		"qid" => "17"
+	})
+	if (qb.success)
+		if (qb.output.kind_of?(Hash))
+			if (qb.output["date"])
+				if (qb.output["date"] == timestamp)
+					return {"action" => "edit", "rid" => qb.output["@rid"]}
+				else
+					return {"action" => "add"}
+				end
+			else
+				return {"action" => "add"}
+			end
+		elsif (qb.output.kind_of?(Array))
+			qb.output.each do |record|
+				if (record["date"].to_i == timestamp)
+					return {"action" => "edit", "rid" => record["@rid"]}
+				end
+			end
+			return {"action" => "add"}
+		end
+	else
+		return {"action" => "fail"}
+	end
+end
+
+def splunk_search(options, service, query)
+	span, earliest, latest = nil, nil, nil
+	span = options[:span] ? options[:span] : query["span"]
+	earliest = options[:earliest] ? options[:earliest] : query["earliest_time"]
+	latest = options[:latest] ? options[:latest] : query["latest_time"]
+
+	options[:logger].info("Executing #{query["query"]}")
+	stream = service.create_oneshot(
+		query["query"],
+		:span => span,
+		:earliest_time => earliest,
+		:latest_time => latest,
+		:output_mode => "json"
+	)
+	data = JSON.parse(stream)
+	return data["results"] ? data["results"] : nil
+end
+
+options = Hash.new
+options[:timezone] = "America/Los_Angeles"
+options[:logger] = Logger.new(STDOUT)
+options[:logger].formatter = proc do |severity, datetime, progname, msg|
+	sprintf("[%s] %s\n", severity.capitalize, msg)
+end
+
+optparse = OptionParser.new do |opts|
+	opts.separator "Query the war room dashboard and update QuickBase"
+	opts.on("-h", "--help", "Display this help.") do
+		puts opts
+		exit 0
+	end
+
+	opts.on("-d", "--date <date>", "The timestamp for this record in the format: YYYY-MM-DD HH:MM <AM/PM>") do |arg|
+		options[:date] = arg
+	end
+
+	opts.on("-n", "--dryrun", "Do not update QuickBase.") do |arg|
+		options[:dryrun] = arg
+	end
+
+	opts.on("-s", "--span <span>", "Override the span parameter for all queries. e,.g. 5m") do |arg|
+		options[:span] = arg
+	end
+
+	opts.on("-e", "--earliest <earliest>", "Override the earliest parameter for all queries. e.g. -2h") do |arg|
+		options[:earliest] = arg
+	end
+
+	opts.on("-l", "--latest <latest>", "Override the latest parameter for all queries. e.g. -1h") do |arg|
+		options[:latest] = arg
+	end
+end
+
+if (ARGV.length == 0)
+	puts optparse
+	exit 1
+end
+
+begin
+	optparse.parse!
+rescue OptionParser::ParseError => error
+	options[:logger].fatal(error)
+	exit 1
+end
+
+# Set the date manually because cron sucks
+#now = Time.new
+#options[:date] = now.strftime("%Y-%m-%d %H:00 %p")
+
+# Validate options
+if (options[:date])
+	#offset_in_hours = TZInfo::Timezone.get(timezone).current_period.utc_offset / (60*60)
+	if (options[:date] =~ /^\d\d\d\d-\d\d-\d\d \d\d:\d\d (AM|PM)/i)
+		options[:dt] = DateTime.parse(options[:date])
+		options[:year] = options[:dt].year
+		options[:month] = options[:dt].month
+		options[:day] = options[:dt].day
+		options[:hour] = options[:dt].hour
+		options[:minute] = options[:dt].minute
+		options[:offset] = TZInfo::Timezone.get(options[:timezone]).current_period.utc_offset
+	else
+		options[:logger].fatal("Timestamp must be in the format YYYY-MM-DD HH:MM <AM|PM>.")
+		exit 1
+	end
+else
+	options[:logger].fatal("Missing required date option.")
+	exit 1
+end
+
+#cfg_file = "/etc/warroom-metrics.yml"
+cfg_file = sprintf("%s/.warroom-metrics.yml", Dir.home)
+cfg = load_config(options, cfg_file)
+qb_user, qb_pass = nil
+
+if (cfg["quickbase"]["username"] && cfg["quickbase"]["password"])
+	qb_user, qb_pass = cfg["quickbase"]["username"], cfg["quickbase"]["password"]
+else
+	auth = auth()
+	if (auth["username"].length > 0)
+		qb_user = auth["username"]
+	else
+		logger.fatal("missing username.")
+		exit 1
+	end
+
+	if (auth["password"].length > 0)
+		qb_pass = auth["password"]
+	else
+		logger.fatal("missing password.")
+		exit 1
+	end
+end
+
+qb = QuickBase.new({
+	"env" => "prod",
+	"username" => qb_user,
+	"password" => qb_pass,
+	"token" => cfg["quickbase"]["token"],
+	"debug" => "on",
+	"db" => cfg["quickbase"]["db"]
+})
+
+service = Splunk::connect({
+	:scheme => cfg["splunk"]["scheme"],
+	:host => cfg["splunk"]["host"],
+	:port => cfg["splunk"]["port"],
+	:username => cfg["splunk"]["username"],
+	:password => cfg["splunk"]["password"]
+})
+options[:logger].info("Logged in service 0. Token: #{service.token}")
+
+output = Hash.new
+queries = cfg["splunk"]["queries"]
+block_pct = 0
+#re = record_exists(options, qb)
+#pp re
+#exit
+
+queries.each do |query_obj|
+	query = query_obj["query"]
+	if (query_obj["skip"] == false)
+		key = query_obj["key"]
+		column = query_obj["column"]
+		results = splunk_search(options, service, query_obj)
+
+		total = 0
+		results.each do |result|
+			total = total + results.last[key].to_f
+		end
+		avg = total / results.length
+		output[column] = sprintf("%.2f",avg)
+	end
+end
+
+options[:logger].info("Statistics: #{output}")
+re = record_exists(options, qb)
+
+if (re["action"] == "add")
+	message = "Record does not exist - adding."
+	if (options[:dryrun])
+		options[:logger].dryrun(message)
+	else
+		options[:logger].info(message)
+		output["Date"] = options[:date]
+		qb.AddRecord({
+			"fields" => output,
+		})
+		pp qb.success ? qb.output : qb.errors
+	end
+elsif (re["action"] == "edit")
+	message = "Record exists with ID #{re["rid"]} - editing."
+	if (options[:dryrun])
+		options[:logger].dryrun(message)
+	else
+		options[:logger].info(message)
+		qb.EditRecord({
+			"rid" => re["rid"],
+			"changes" => output,
+			"qid" => "17"
+		})
+		pp qb.success ? qb.output : qb.errors
+	end
+elsif (re["action"] == "fail")
+	options[:logger].fatal("Could not determine if record exists. Please update manually.")
+	exit 1
+end

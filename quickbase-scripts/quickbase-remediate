@@ -1,0 +1,192 @@
+#!/usr/bin/env ruby
+
+require "pp"
+require "etc"
+require "optparse"
+require "kconv"
+require "logger"
+require "quickbase"
+#require "/Users/gdanko/git/ruby-quickbase/lib/quickbase/quickbase.rb";
+
+class Logger
+	def self.custom_level(tag)
+		SEV_LABEL << tag
+		idx = SEV_LABEL.size - 1
+
+		define_method(tag.downcase.gsub(/\W+/, '_').to_sym) do |progname, &block|
+			add(idx, nil, progname, &block)
+		end
+	end
+	custom_level "DRYRUN"
+end
+
+def auth()
+	printf("Quickbase username (#{Etc.getlogin}): ")
+	username = STDIN.gets.chomp
+	username = username.length > 1 ? username : Etc.getlogin
+
+	printf("Password for #{username}: ")
+	system "stty -echo"
+	password = STDIN.gets.chomp
+	system "stty echo"
+	puts ""
+	return {"username" => username || nil, "password" => URI.encode(password).gsub(/&/, "%26") || nil}
+end
+
+def user_auth()
+	output = {"username" => nil, "password" => nil}
+	username = Etc.getlogin
+	if (username)
+		output["username"] = username
+		filename = sprintf("%s/.%s", Dir.home, username)
+		if (File.exist?(filename))
+			output["password"] = URI.encode(File.read(filename).chomp).gsub(/&/, "%26")
+		end
+	end
+	return output
+end
+
+logger = Logger.new(STDOUT)
+logger.formatter = proc do |severity, datetime, progname, msg|
+	sprintf("[%s] %s\n", severity.capitalize, msg)
+end
+
+options = {:ticket => nil, :log_type => 1}
+ids = Array.new
+creds = Hash.new
+
+optparse = OptionParser.new do |opts|
+	opts.separator "Remediate items for JK"
+	opts.on("-h", "--help", "Display this help.") do
+		puts opts
+		exit 0
+	end
+
+	opts.on("-f", "--filename <filename>", "Optional. Filename with a list of record IDs. One per line.") do |arg|
+		options[:filename] = arg
+	end
+
+	opts.on("-i", "--ids <id,id>", "Optional. Comma delimited list of record IDs.") do |arg|
+		options[:ids] = arg
+	end
+
+	opts.on("-o", "--owner <email address>", "Optional. Set the remediation owner for each record in the set.") do |arg|
+		options[:owner] = arg
+	end
+
+	opts.on("-d", "--debug", "Display sometimes useful debug messages.") do |arg|
+		options[:debug] = arg
+	end
+
+	opts.on("-n", "--dryrun", "Show what would be done.") do |arg|
+		options[:dryrun] = arg
+		options[:log_type] = 6
+	end
+
+	if (Etc.getlogin == "gdanko")
+		opts.on("--gd", "Attempt to login with GD's credentials.") do |arg|
+			options[:user_auth] = arg
+		end
+	end
+
+	if (Etc.getlogin == "jkorn")
+		opts.on("--jk", "Attempt to login with JK's credentials.") do |arg|
+			options[:user_auth] = arg
+		end
+	end
+end
+
+if (ARGV.length == 0)
+	puts optparse
+	exit 1
+end
+
+begin
+	optparse.parse!
+rescue OptionParser::ParseError => error
+	logger.fatal(error)
+	exit 1
+end
+
+if (options[:filename] && options[:ids])
+	logger.error("filename and ids are mutually exclusive.")
+	exit 1
+end
+
+unless (options[:filename] || options[:ids])
+	logger.error("you must specify either filename or ids.")
+	exit 1
+end
+
+if (options[:ids])
+	ids = options[:ids].split(/\s*,\s*/)
+end
+
+if (options[:filename])
+	if (File.exists?(options[:filename]))
+		File.readlines(options[:filename]).each { |line|
+			ids.push(line.chomp.strip)
+		}
+	else
+		logger.error(sprintf("File %s not found.", options[:filename]))
+	end
+end
+
+if (options[:user_auth] == true)
+	creds = user_auth()
+	unless (creds["username"] && creds["password"])
+		creds = auth()
+	end
+else
+	creds = auth()
+end
+
+unless (creds["username"] && creds["password"])
+	puts "Missing username and/or password."
+	exit 1
+end
+
+qb = QuickBase.new({
+	"env" => "prod",
+	"username" => creds["username"],
+	"password" => creds["password"],
+	"db" => "bgxr2eqgg",
+	"debug" => "on"
+})
+
+ids.each do |id|
+	if (id =~ /^#/)
+		logger.add options[:log_type], "Ignoring comment: #{id}"
+	else
+		update_id = nil
+		logger.add options[:log_type], "Processing record ID #{id}..."
+		unless (options[:dryrun])
+			qb.GetRecordInfo({"rid" => id})
+			if (qb.success)
+				update_id = qb.output["update_id"] if qb.output["update_id"]
+			end
+
+			changes = {
+				"Remediated" => "Remediated",
+				"ReScan?" => "1"
+			}
+			changes["Remediation Owner"] = options[:owner] if options[:owner]
+
+			qb.EditRecord({
+				"rid" => id,
+				"changes" => changes,
+				"update_id" => update_id || nil
+			})
+
+			if (qb.success)
+				if (options[:debug])
+					logger.debug(sprintf("Exit code: %s", qb.output["errcode"]))
+					logger.debug(sprintf("Error text: %s", qb.output["errtext"])) unless qb.output["errtext"] == "No error"
+					logger.debug(sprintf("Number of fields changed: %s", qb.output["num_fields_changed"]))
+				end				
+			else
+				puts qb.errors
+			end
+		end
+	end
+end
